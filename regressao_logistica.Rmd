@@ -585,7 +585,7 @@ dados[1:6]<-as.character(dados[1:6])
 dados[1:13]<-dados|>
 mutate_if(factor)
 
-cols=colnames(dados)
+cols=colnames(dados)OI
 
 
 mutate_all(cols, factor)
