@@ -1,0 +1,436 @@
+---
+title: "logistic_regression"
+author: "joseferson da silva barreto"
+date: "2022-11-25"
+output:
+ html_document:
+    toc: true
+    toc_float: true
+    css: www/meu_cs.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Obejetivo
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Metódologia
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+# Introdução 
+
+Pesquisas indicam que a insuficiencia renal afeta cerca de 65 milhões de pessoas no mundo,, ela é dividida em 2 tipos : insuficiência cardiáca com fração de ejeção reduzida e  insuficiência cardiaca com fração de ejeção preservada.
+
+
+
+
+
+# Carregando o Banco de Dados 
+
+```{r}
+library(tidyverse)
+dados<-read.csv("heart_failure_clinical_records_dataset.csv",sep = ",")
+
+
+
+```
+
+### Análise exploratória  e tratamento dos dados 
+
+Toda boa análise deve ser iniciada pela análise exploratória dos dados,vamos começar  verificando se temos a presença 
+de dados faltantes utilizando o comando abaixo
+
+```{r}
+round(mean(is.na(dados))*100,10)
+```
+como podemos obervar não temos a presença de nemhum dado faltante ,vamos verificar os tipos das nossas variáveis 
+
+
+```{r}
+glimpse(dados)
+```
+
+
+como podemos observar algumas classes estão  como sendo inteiros ,ou seja,valores numericos ,vamos converte-las para fator 
+
+
+```{r}
+dados1<-dados|>   select(anaemia,diabetes,high_blood_pressure,sex,smoking,DEATH_EVENT
+                 ) |>
+mutate_if(is.integer,as.factor) 
+
+dados2<-dados|>   select(age,creatinine_phosphokinase,ejection_fraction,platelets,serum_creatinine,serum_sodium,time
+                 )
+
+
+dados<-cbind(dados2,dados1)
+
+table(dados$DEATH_EVENT)
+
+
+glimpse(dados)
+
+203/299
+```
+agora vamos salvar o nosso nosso banco de dados 
+
+```{r}
+write.csv(dados,"dados_edit.csv",row.names = F,sep = ";")
+```
+## Balanciamento dos dados 
+ Como nossos dados  não estão com uma proporção equivalente  em nossa variável target  então vamos  reaalizar  o balanciamento dos nossos dados ,para isso vamos utilizar os comandos abaixo 
+ 
+```{r}
+Base_1 = dados %>% filter( DEATH_EVENT == 1 )
+Base_0 =dados   %>% filter( DEATH_EVENT == 0  ) 
+
+
+Base_0_balan = Base_0[ sample(x=1:dim(Base_0)[1], size = dim(Base_1)[1], replace = F ),   ]
+banco_balanced <- rbind(Base_1, Base_0_balan)
+
+#prop.table( table(banco_balanced$DEATH_EVENT  ) )
+
+
+#write.csv(banco_balanced,"dados1_edit.csv",row.names = F,sep = ";")
+
+
+#write.csv(dados,"dados1_edit.csv",row.names = F,sep = ";")
+```
+
+
+
+
+
+##  Análise Exploratória 
+
+ Finalmente após a primeira etapa de preparação dos dados vamos iniciar a análise exploratória  de forma prática utilizando a linguagem python , para isso vamos utilizar os seguintes comandos 
+ 
+```{python}
+import pandas as pd 
+
+import numpy as np 
+import sweetviz as sv
+import warnings
+
+
+warnings.filterwarnings("ignore") 
+
+
+dados=pd.read_csv("dados1_edit.csv")
+
+my_report = sv.analyze(dados) # cria o reporte e chama de my_report
+```
+
+
+```{python}
+#my_report.show_html()
+
+```
+
+
+```{python}
+msk = np.random.rand(len(dados)) < 0.7
+train = dados[msk]
+test = dados[~msk]
+
+#train.head() # 80%
+```
+
+
+```{python}
+my_report = sv.compare([train, 'training set'], [test, 'testing set'])
+
+#my_report.show_html()
+```
+
+
+```{python}
+#dados1=dados[0:11]
+my_report = sv.compare_intra(dados, dados['DEATH_EVENT']==1,['morreu','não morreu'])
+#my_report.show_html()
+
+
+```
+
+#  Voltando para o R
+ Após a  análise exploratória vamos  voltar a utlizar a limguagem R,vamos observar as distribuições de nossas variaveis númericas 
+ 
+```{r}
+#dados ja balanceado
+dados<- read.csv("dados1_edit.csv",sep = ",")
+
+
+library(tidyverse)
+glimpse(dados)
+
+
+dados[8:13]<-dados[8:13] %>% mutate_if(is.integer,as.factor) 
+dados$age<-round(dados$age,0)
+
+
+
+# qplot(dados$age,
+#         main = "Histogram energy",
+#         xlab = "valores",
+#         ylab = "frequencias",
+#         fill=I("orange"),
+#         col=I("black")  ,
+#           col="red", 
+#         fill="green", 
+#         alpha= .9) + 
+#      geom_density(alpha = 0.5)+
+  library(plotly)
+  
+  ff<-ggplot(dados, aes(x = dados$age)) +
+  
+  geom_histogram(aes(y = ..density..),
+                 binwidth = 1,     # Amplitude da classe
+                 fill = 'dodgerblue',
+                 color = 'black')+ # Linha de densidade
+  
+  stat_function(fun = dnorm, color='red', size = 2,
+                args = list(mean = mean(dados$age),
+                            sd = sd(dados$age)))+   
+  
+  theme_light()
+ 
+
+
+```
+
+ pelo gráfico acima podemos perceber que a variável **age(idade)**  não aparenta seguir a distribuição normal,mas vamos fazer o teste para confirmar,ma antes vamos ver o boxplot
+ 
+```{r}
+ggplot(dados, aes(x = DEATH_EVENT, y = age, fill = DEATH_EVENT)) + 
+  geom_boxplot() +
+  stat_summary(fun = "mean", geom = "point", shape = 8,
+               size = 2, color = "white")
+
+boxplot (dados$age~dados$DEATH_EVENT,
+        main = "Boxplot para  age ",
+        xlab = "valence",
+        ylab = "liked",
+        las = 1,
+        col = c ("light green", "steelblue1"),
+        names = c("não morreu", "morreu")
+        )
+
+# ggplot(ds, aes(x = label, y = temperature, fill = label)) + 
+#   geom_boxplot() +
+#   stat_summary(fun = "mean", geom = "point", shape = 8,
+#                size = 2, color = "white")
+```
+ 
+ 
+ 
+```{r}
+
+dados$diferenaliked<-dados$DEATH_EVENT-dados$age
+shapiro.test(dados$diferenaliked)
+
+
+0.001793 > 0.05
+```
+ Logo, podemos afirma que não há evidências que a variável  **age** siga distribuição normal, ou seja ,vamos utilizar o teste Mann-Whitney  para verificar  asociação entre nossa variável resposta com **age**
+ 
+ 
+```{r}
+wilcox.test(dados$age~dados$DEATH_EVENT, data=dados,correct=T)
+
+```
+ 
+ 
+Como o Pvalor < 0,05, rejeitamos a hipótese nula em favor da hipótese alternativa ,logo , a médiana da diferênça dos valores é realmente diferente de zero , nesse caso, podemos afirmar que existe associação significativa entre as variáveis .
+
+
+### creatinine_phosphokinase  
+
+```{r}
+
+
+
+boxplot (dados$creatinine_phosphokinase~dados$DEATH_EVENT,
+        main = "Boxplot para  creatinine_phosphokinase ",
+        xlab = "valence",
+        ylab = "liked",
+        las = 1,
+        col = c ("light green", "steelblue1"),
+        names = c("não morreu", "morreu")
+        )
+```
+É possível verificar que temos a presença de outliers nessa variável 
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# ggplot(dados, aes(x = dados$creatinine_phosphokinase)) +
+#   
+#   geom_histogram(aes(y = ..density..),
+#                  binwidth = 1,     # Amplitude da classe
+#                  fill = 'dodgerblue',
+#                  color = 'black')+ # Linha de densidade
+#   
+#   stat_function(fun = dnorm, color='red', size = 2,
+#                 args = list(mean = mean(dados$creatinine_phosphokinase),
+#                             sd = sd(dados$creatinine_phosphokinase)))+   
+#   
+#   theme_light()
+
+wilcox.test(dados$creatinine_phosphokinase~dados$DEATH_EVENT, data=dados,correct=T)
+ 
+```
+
+Como Pvalor > 0,05 ,rejeitamos a hipótese nula em favor da hipótese alternativa ,logo , a médiana da diferênça dos valores é realmente diferente de zero , nesse caso, podemos afirmar que existe associação significativa entre as variáveis .
+
+
+
+###  ejection_fraction
+
+```{r}
+
+boxplot (dados$ejection_fraction~dados$DEATH_EVENT,
+        main = "Boxplot para  creatinine_phosphokinase ",
+        xlab = "valence",
+        ylab = "DEATH_EVENT",
+        las = 1,
+        col = c ("light green", "steelblue1"),
+        names = c("não morreu", "morreu")
+        )
+
+```
+ Podemos perceber a presença de outliers, vamos verificar  se  a variável segue distribuição normal 
+ 
+ 
+ 
+```{r}
+options(scipen=999)
+diferenaliked<-dados$DEATH_EVENT-dados$ejection_fraction
+shapiro.test(diferenaliked)
+```
+ 
+ Como o Pvalor < 0,05 , não rejeita-se a hipótese nula . Nesse sentido , temos que não existe normalidade entre as variáveis testadas , Logo ,o teste T independente não é o mais indacado , assim vamos utilizar o teste Wilcoxon:
+ 
+ 
+```{r}
+
+
+
+wilcox.test(dados$ejection_fraction~dados$DEATH_EVENT, data=dados,correct=T)
+```
+ Como Pvalor > 0,05 ,rejeitamos a hipótese nula em favor da hipótese alternativa ,logo , a médiana da diferênça dos valores é realmente diferente de zero , nesse caso, podemos afirmar que existe associação significativa entre as variáveis .
+ 
+ 
+ 
+
+ fazendo o mesmo processo para  as demais 
+```{r}
+#install.packages("gtsummary")
+library(gtsummary)
+
+
+wilcox.test(dados$platelets~dados$DEATH_EVENT, data=dados,correct=T)
+
+wilcox.test(dados$serum_creatinine~dados$DEATH_EVENT, data=dados,correct=T)
+
+wilcox.test(dados$serum_sodium~dados$DEATH_EVENT, data=dados,correct=T)
+wilcox.test(dados$time~dados$DEATH_EVENT, data=dados,correct=T)
+
+variaveis<-c("platelets","serum_creatinine","serum_sodium","time")
+valor_test_W<-c("0.6833","0.00000005241","0.0008524","0.000000000000002719")
+  
+data.frame(cbind(variaveis,valor_test_W))
+```
+ 
+ Apenas  a variável platelets apresenta pvalor maior que 0,05 ,logo, ela não possui associação com a variável resposta , agora vamos verificar  associação entre nossas variáveis categóricas e  a nossa variável resposta:
+ 
+## Teste Qui-Quadrado para as variáveis resposta 
+ 
+ 
+ 
+ O teste Qui-quadrado é um teste não-paramétrico utilizado, basicamente, para três finalidades específicas, que são:
+
+Verificar as distribuições de probabilidades de cada categoria de uma variável em relação a um valor teórico esperado (aderência),
+
+Verificar se as distribuições das categorias são as mesmas para diferentes subpopulações de interesse (homogeneidade)
+
+Verificar se duas variáveis categóricas são independentes (independência).
+
+Apesar das diferenças em relação às perguntas de pesquisa, o sistema matemático é o mesmo.
+
+Hipóteses
+$H_0 =$ não há asociação entre as vareiáveis instrumentalness e liked , para $Pvalor > 0,05$
+
+$H_1=$ há asociação entre as vareiáveis instrumentalness e liked, para $pvalor ≤ 0,05$
+
+Antes temos que transformar a varíavel instrumentalness em intervalo :
+
+
+
+
+```{r}
+library(tidyverse)
+dados3<-dados |>
+  dplyr::select(where(is.factor)) 
+
+glimpse(dados)
+
+
+chisq.test(dados3$anaemia,dados3$DEATH_EVENT)
+
+
+chisq.test(dados3$diabetes,dados3$DEATH_EVENT)
+
+chisq.test(dados1$high_blood_pressure,dados3$DEATH_EVENT)
+
+chisq.test(dados3$DEATH_EVENT,dados1$sex)
+
+chisq.test(dados1$smoking,dados3$DEATH_EVENT)
+
+
+library(gmodels)
+
+# CrossTable(dados3$DEATH_EVENT,dados1$sex, 
+#            expected = T, prop.r = F, prop.c = F, prop.t = T, prop.chisq = F, 
+#            chisq = T, fisher = T,
+#            format = "SPSS")
+
+
+chisq.test(dados$anaemia,dados$DEATH_EVENT)
+```
+
+Pelo teste qui-quadrado nenhuma variável categórica apresentou 
+```{r}
+library(randomForest)
+importancia  = randomForest(DEATH_EVENT~ ., data = dados3)
+
+col = importance(importancia)
+options(scipen=999) 
+par(bg = '#586573')
+varImpPlot(importancia)
+```
